@@ -5,29 +5,67 @@ using UnityEngine.SceneManagement;
 
 public class PlayerController : MonoBehaviour
 {
+    [Header("Movement")]
     public Rigidbody2D rb;
     public float jumpHeight = 5f;
-    private float movement;
     public float moveSpeed = 5f;
+    private float movement;
     private bool facingRight = true;
     public bool isGround = true;
+
+    [Header("Animation")]
     public Animator animator;
+    private SpriteRenderer spriteRenderer;
 
-    public float knockbackForce = 5f;
-    private bool invulnerable = false;
-    public float invulnerableTime = 1f;
-
+    [Header("Combat")]
     public int maxHealth = 10;
     public int currentHealth;
+    public float knockbackForce = 5f;
+    public float invulnerableTime = 1f;
+    private bool invulnerable = false;
+
+    [Header("Stomp & Death")]
     public Transform respawnPoint;
+    public float stompBounce = 8f;
+    public float fallDeathY = -10f;
+
+    [Header("Power-Up")]
+    public Sprite poweredSprite;
+    public RuntimeAnimatorController poweredAnimator;
+    public int baseDamage = 1;
+    public int poweredDamage = 2;
+    private Sprite defaultSprite;
+    private RuntimeAnimatorController defaultAnimator;
+    private int currentDamage;
+    private bool isPowered = false;
+
+    public static PlayerController Instance;
+
+    void Awake()
+    {
+        Instance = this;
+        spriteRenderer = GetComponent<SpriteRenderer>() ?? GetComponentInChildren<SpriteRenderer>();
+    }
 
     void Start()
     {
         currentHealth = maxHealth;
+        defaultSprite = spriteRenderer.sprite;
+        defaultAnimator = animator.runtimeAnimatorController;
+        currentDamage = baseDamage;
     }
 
     void Update()
     {
+        if (transform.position.y < fallDeathY)
+        {
+            if (GameManager.Instance != null)
+                GameManager.Instance.TakeDamage(GameManager.Instance.currentHealth);
+            else
+                Die();
+            return;
+        }
+
         float left = Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed ? -1f : 0f;
         float right = Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed ? 1f : 0f;
         movement = left + right;
@@ -53,9 +91,9 @@ public class PlayerController : MonoBehaviour
         animator.SetBool("isRunning", Mathf.Abs(movement) > 0f);
     }
 
-    private void FixedUpdate()
+    void FixedUpdate()
     {
-        transform.position += new Vector3(movement * Time.fixedDeltaTime * 5f, 0, 0) * moveSpeed;
+        transform.position += new Vector3(movement * Time.fixedDeltaTime * moveSpeed, 0, 0);
     }
 
     void Jump()
@@ -65,15 +103,60 @@ public class PlayerController : MonoBehaviour
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        // giữ để detect ground
         if (collision.gameObject.CompareTag("Ground"))
         {
             isGround = true;
             animator.SetBool("isJumping", false);
         }
+
+        if (collision.gameObject.CompareTag("Enemy"))
+        {
+            foreach (ContactPoint2D cp in collision.contacts)
+            {
+                if (cp.normal.y > 0.5f)
+                {
+                    StompEnemy(collision.gameObject);
+                    return;
+                }
+            }
+        }
     }
 
-    // DÙNG TRIGGER CHO TRAP
+    public void PerformStompBounce()
+    {
+        rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
+        rb.AddForce(Vector2.up * stompBounce, ForceMode2D.Impulse);
+    }
+
+    private void StompEnemy(GameObject enemyObj)
+    {
+        var e = enemyObj.GetComponent<Enemy>() ?? enemyObj.GetComponentInParent<Enemy>();
+        if (e != null) e.Die();
+
+        PerformStompBounce();
+        TriggerTemporaryInvulnerability(0.5f);
+        animator.SetTrigger("Stomp");
+    }
+
+    public void TriggerTemporaryInvulnerability(float duration)
+    {
+        StartCoroutine(InvulnerableCoroutine(duration));
+    }
+
+    IEnumerator InvulnerableCoroutine(float duration)
+    {
+        invulnerable = true;
+        float t = 0f;
+        while (t < duration)
+        {
+            spriteRenderer.enabled = !spriteRenderer.enabled;
+            yield return new WaitForSeconds(0.1f);
+            t += 0.1f;
+        }
+        spriteRenderer.enabled = true;
+        invulnerable = false;
+    }
+
     private void OnTriggerEnter2D(Collider2D other)
     {
         if (invulnerable) return;
@@ -82,59 +165,71 @@ public class PlayerController : MonoBehaviour
         {
             int damage = 1;
 
-            // nếu là Trap đọc Trap.damage
             var trapComp = other.GetComponent<Trap>();
-            if (trapComp != null)
-            {
-                damage = trapComp.damage;
-            }
+            if (trapComp != null) damage = trapComp.damage;
             else
             {
-                // nếu là Enemy đọc Enemy.damage
-                var enemyComp = other.GetComponent<Enemy>();
+                var enemyComp = other.GetComponent<Enemy>() ?? other.GetComponentInParent<Enemy>();
                 if (enemyComp != null) damage = enemyComp.damage;
             }
 
-            // trừ máu qua GameManager
             if (GameManager.Instance != null)
                 GameManager.Instance.TakeDamage(damage);
-
-            // knockback ra xa đối tượng
-            Vector2 dir = (Vector2)(transform.position - other.transform.position);
-            dir = dir.normalized;
-            rb.AddForce(new Vector2(dir.x * knockbackForce, Mathf.Abs(dir.y) * knockbackForce), ForceMode2D.Impulse);
-
-            StartCoroutine(InvulnerableCoroutine());
         }
-    }
-
-    IEnumerator InvulnerableCoroutine()
-    {
-        invulnerable = true;
-        var sr = GetComponent<SpriteRenderer>();
-        if (sr != null)
-        {
-            float t = 0f;
-            while (t < invulnerableTime)
-            {
-                sr.enabled = !sr.enabled;
-                yield return new WaitForSeconds(0.1f);
-                t += 0.1f;
-            }
-            sr.enabled = true;
-        }
-        else
-        {
-            yield return new WaitForSeconds(invulnerableTime);
-        }
-        invulnerable = false;
     }
 
     void Die()
     {
         animator.SetTrigger("Die");
-        // quay lại màn đầu luôn
         Time.timeScale = 1f;
         SceneManager.LoadScene(0);
     }
+
+    public void ApplyPowerUp(Sprite newSprite, RuntimeAnimatorController newAnim, int damage, float duration)
+    {
+        StopCoroutine(nameof(RevertPowerUpAfter));
+
+        if (newSprite != null) spriteRenderer.sprite = newSprite;
+        if (newAnim != null && animator != null)
+        {
+            animator.runtimeAnimatorController = newAnim;
+            animator.enabled = true;
+        }
+
+        currentDamage = damage;
+        isPowered = true;
+        StartCoroutine(RevertPowerUpAfter(duration));
+        Debug.Log("ApplyPowerUp called with sprite: " + newSprite.name);
+    }
+
+    private IEnumerator RevertPowerUpAfter(float t)
+    {
+        yield return new WaitForSeconds(t);
+        spriteRenderer.sprite = defaultSprite;
+        animator.runtimeAnimatorController = defaultAnimator;
+        currentDamage = baseDamage;
+        isPowered = false;
+    }
+
+    public int GetAttackDamage()
+    {
+        return currentDamage;
+    }
+    public void TakeDamage(int damage)
+{
+    if (invulnerable) return;
+
+    currentHealth -= damage;
+
+    if (currentHealth <= 0)
+    {
+        Die();
+    }
+    else
+    {
+        TriggerTemporaryInvulnerability(invulnerableTime);
+        animator.SetTrigger("Hit"); // nếu có animation bị đánh
+    }
+}
+
 }
