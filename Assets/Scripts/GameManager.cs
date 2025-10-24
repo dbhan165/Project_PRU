@@ -88,4 +88,8 @@ public class GameManager : MonoBehaviour
         UpdateHealthUI();
         if (gameOverPanel != null) gameOverPanel.SetActive(false);
     }
+    public void GotoMenu()
+    {
+        SceneManager.LoadScene("Menu");
+    }
 }
