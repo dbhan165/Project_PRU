@@ -14,7 +14,7 @@ public class PlayAgain : MonoBehaviour
     public void OnPlayAgainToStart()
     {
         Time.timeScale = 1f;
-        SceneManager.LoadScene(0);
+        SceneManager.LoadScene(1);
     }
 
     // Gọi nếu muốn load theo tên scene (truyền tên từ Button OnClick)

@@ -30,7 +30,7 @@ Transform:
   m_GameObject: {fileID: 2707753775118117222}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: -0.04, y: 2.56, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -121,7 +121,7 @@ Rigidbody2D:
   m_Interpolate: 0
   m_SleepingMode: 1
   m_CollisionDetection: 0
-  m_Constraints: 1
+  m_Constraints: 5
 --- !u!61 &276119620930012545
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -156,17 +156,17 @@ BoxCollider2D:
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
-  m_Offset: {x: -0.006967813, y: -0.18813235}
+  m_Offset: {x: -0.006967813, y: -0.09628016}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
-    pivot: {x: 0.5, y: 0.5}
+    pivot: {x: 0.5070846, y: 0.40553784}
     oldSize: {x: 2, y: 2}
     newSize: {x: 2, y: 2}
     adaptiveTilingThreshold: 0.5
     drawMode: 0
     adaptiveTiling: 0
   m_AutoTiling: 0
-  m_Size: {x: 0.7318494, y: 1.1220492}
+  m_Size: {x: 0.7318494, y: 0.93834484}
   m_EdgeRadius: 0
 --- !u!114 &7395770367861654978
 MonoBehaviour:
@@ -182,19 +182,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   rb: {fileID: 1192603451739572321}
   jumpHeight: 10
-  moveSpeed: 2
+  moveSpeed: 10
   isGround: 1
   animator: {fileID: 3817725228548547405}
-  knockbackForce: 5
-  invulnerableTime: 1
   maxHealth: 3
   currentHealth: 0
+  knockbackForce: 5
+  invulnerableTime: 1
   respawnPoint: {fileID: 0}
   stompBounce: 8
   fallDeathY: -10
-  isPowered: 0
   poweredSprite: {fileID: -6447722072507503168, guid: 10f3cacccb0c4c547be76836eba20664, type: 3}
-  poweredAnimator: {fileID: 9100000, guid: 9feeca21ce3ec6a4897b3aa6d9ace3f7, type: 2}
+  poweredAnimator: {fileID: 9100000, guid: d7eeb48134ab620489e1005e6d38ed5d, type: 2}
   baseDamage: 1
   poweredDamage: 2
 --- !u!95 &3817725228548547405
@@ -246,8 +245,8 @@ Transform:
   m_GameObject: {fileID: 6032267756771395642}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.01, y: -0.9, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: 0.01, y: -0.526, z: 0}
+  m_LocalScale: {x: 0.97879, y: 0.9396384, z: 0.97879}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 134575488315769108}
