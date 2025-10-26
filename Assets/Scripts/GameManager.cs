@@ -9,12 +9,16 @@ public class GameManager : MonoBehaviour
 
     [Header("Health")]
     public int maxHealth = 10;
-    public int currentHealth; // đã bỏ [ReadOnly]
+    public int currentHealth;
 
     [Header("UI")]
-    public GameObject gameOverPanel; // Canvas/GameOverUI (set inactive in inspector)
-    public TMP_Text healthText;      // Canvas/HUD/Text (TMP)
-    public Image healthBarFill;      // Canvas/HUD/HealthBar_BG/HealthBar_Fill (Image type = Filled)
+    public GameObject gameOverPanel;
+    public TMP_Text healthText;   // kéo Text (TMP) vào đây
+    public Image healthBarFill;   // kéo HealthBar_Fill (Image) vào đây
+
+    [Header("Keys")]
+    public int keyCount = 0;
+    public TMP_Text keyText; // gán Text Mesh Pro hiển thị số key
 
     void Awake()
     {
@@ -27,18 +31,16 @@ public class GameManager : MonoBehaviour
         currentHealth = maxHealth;
         if (gameOverPanel != null) gameOverPanel.SetActive(false);
         UpdateHealthUI();
+        UpdateKeyUI();
     }
 
     public void TakeDamage(int amount)
     {
         if (currentHealth <= 0) return;
         currentHealth -= amount;
+        if (currentHealth < 0) currentHealth = 0;
         UpdateHealthUI();
-
-        if (currentHealth <= 0)
-        {
-            OnGameOver();
-        }
+        if (currentHealth <= 0) OnGameOver();
     }
 
     void UpdateHealthUI()
@@ -55,16 +57,39 @@ public class GameManager : MonoBehaviour
         Time.timeScale = 0f;
     }
 
-    // gọi từ nút Play Again (OnClick)
     public void RestartToStart()
     {
         Time.timeScale = 1f;
-        SceneManager.LoadScene(0);
+        SceneManager.LoadScene(1);
     }
 
     public void RestartCurrent()
     {
         Time.timeScale = 1f;
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+    }
+
+    public void AddKey(int amount = 1)
+    {
+        keyCount += amount;
+        UpdateKeyUI();
+    }
+
+    void UpdateKeyUI()
+    {
+        if (keyText != null) keyText.text = $"Keys: {keyCount}";
+    }
+
+    public void ResetGameState()
+    {
+        keyCount = 0;
+        currentHealth = maxHealth;
+        UpdateKeyUI();
+        UpdateHealthUI();
+        if (gameOverPanel != null) gameOverPanel.SetActive(false);
+    }
+    public void GotoMenu()
+    {
+        SceneManager.LoadScene("Menu");
     }
 }
