@@ -76,6 +76,21 @@ public class GameManager : MonoBehaviour
         // Nếu nó đang chạy rồi, không cần làm gì cả, nó sẽ tự động đuổi theo giá trị coinCount mới.
     }
 
+    public bool TrySpendCoins(int amountToSpend)
+    {
+        if (coinCount >= amountToSpend)
+        {
+            coinCount -= amountToSpend;
+            UpdateCoinUI(); // Cập nhật thẳng số coin, không cần hiệu ứng
+            return true;
+        }
+        else
+        {
+            Debug.Log("Không đủ coin!");
+            return false;
+        }
+    }
+
     private IEnumerator CountCoinsRoutine()
     {
         Debug.Log("-> Coroutine BẮT ĐẦU. Mục tiêu cần đếm đến là: " + coinCount);
@@ -173,5 +188,24 @@ public class GameManager : MonoBehaviour
     public void GotoMenu()
     {
         SceneManager.LoadScene("Menu");
+    }
+
+    public void HealPlayer(int amount)
+    {
+        currentHealth += amount;
+        // Đảm bảo máu không vượt quá giới hạn
+        if (currentHealth > maxHealth)
+        {
+            currentHealth = maxHealth;
+        }
+        UpdateHealthUI(); // Cập nhật lại thanh máu trên UI
+    }
+
+    // Hàm để tăng máu tối đa
+    public void IncreaseMaxHealth(int amount)
+    {
+        maxHealth += amount;
+        currentHealth += amount; // Thường thì khi tăng máu tối đa, người chơi cũng được hồi máu luôn
+        UpdateHealthUI();
     }
 }

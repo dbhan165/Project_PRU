@@ -216,20 +216,26 @@ public class PlayerController : MonoBehaviour
         return currentDamage;
     }
     public void TakeDamage(int damage)
-{
-    if (invulnerable) return;
-
-    currentHealth -= damage;
-
-    if (currentHealth <= 0)
     {
-        Die();
+        if (invulnerable) return;
+
+        currentHealth -= damage;
+
+        if (currentHealth <= 0)
+        {
+            Die();
+        }
+        else
+        {
+            TriggerTemporaryInvulnerability(invulnerableTime);
+            animator.SetTrigger("Hit"); // nếu có animation bị đánh
+        }
     }
-    else
+
+    public void IncreaseMoveSpeed(float percentage)
     {
-        TriggerTemporaryInvulnerability(invulnerableTime);
-        animator.SetTrigger("Hit"); // nếu có animation bị đánh
+        // Tăng tốc độ theo phần trăm. Ví dụ: 0.1f là 10%
+        moveSpeed *= (1 + percentage);
     }
-}
 
 }
