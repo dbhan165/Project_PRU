@@ -27,6 +27,6 @@ public class Coin : MonoBehaviour
 
         // Bước 2: Tự hủy gameObject (chính là đồng coin này)
         // để nó biến mất khỏi màn chơi.
-        //Destroy(gameObject);
+        Destroy(gameObject);
     }
 }
