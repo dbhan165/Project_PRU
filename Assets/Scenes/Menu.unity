@@ -420,7 +420,7 @@ MonoBehaviour:
   obtacles:
   - {fileID: 485257573654536825, guid: cdf391b188de5a84db30def0b2a2d70b, type: 3}
   lowPos: {fileID: 225284746}
-  spawnRate: 2
+  spawnRate: 3
 --- !u!4 &225284746
 Transform:
   m_ObjectHideFlags: 0
@@ -430,7 +430,7 @@ Transform:
   m_GameObject: {fileID: 225284744}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 9.54, y: 0.21, z: 0}
+  m_LocalPosition: {x: 8.45, y: 0.21, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1401,7 +1401,7 @@ Transform:
   m_GameObject: {fileID: 1652064196}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 7.15, y: -1.23, z: 0}
+  m_LocalPosition: {x: 7.15, y: -1.15, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
