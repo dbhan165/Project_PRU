@@ -13,6 +13,8 @@ public class PlayerController : MonoBehaviour
     private float movement;
     private bool facingRight = true;
     public bool isGround = true;
+    [SerializeField] private LayerMask groundLayer;
+    [SerializeField] private Transform groundCheck;
 
     [Header("Animation")]
     public Animator animator;
@@ -101,6 +103,7 @@ public class PlayerController : MonoBehaviour
         if (keyboard.spaceKey.wasPressedThisFrame && Mathf.Abs(rb.linearVelocity.y) < 0.001f && isGround)
         {
             Jump();
+            isGround = Physics2D.OverlapCircle(groundCheck.position, 0.2f, groundLayer);
             isGround = false;
             animator.SetBool("isJumping", true);
         }

@@ -60,7 +60,7 @@ public class GameManager : MonoBehaviour
     public void RestartToStart()
     {
         Time.timeScale = 1f;
-        SceneManager.LoadScene(0);
+        SceneManager.LoadScene(1);
     }
 
     public void RestartCurrent()
@@ -87,5 +87,9 @@ public class GameManager : MonoBehaviour
         UpdateKeyUI();
         UpdateHealthUI();
         if (gameOverPanel != null) gameOverPanel.SetActive(false);
+    }
+    public void GotoMenu()
+    {
+        SceneManager.LoadScene("Menu");
     }
 }
