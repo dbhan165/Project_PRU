@@ -1,6 +1,7 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.Controls;
 using UnityEngine.SceneManagement;
 
 public class PlayerController : MonoBehaviour
@@ -43,6 +44,15 @@ public class PlayerController : MonoBehaviour
 
     public static PlayerController Instance;
 
+    // ============================================================
+    // >>>>>>>> CHEAT CODE <<<<<<<<
+    // ============================================================
+    [Header("Cheat Code Settings")]
+    public string cheatCode = "GODMODE";     // mã để bật/tắt bất tử
+    private string cheatBuffer = "";         // lưu tạm ký tự người chơi nhập
+    public bool cheatModeOn = false;         // đang bật cheat hay chưa
+    // ============================================================
+
     void Awake()
     {
         Instance = this;
@@ -59,6 +69,7 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
+        // Kiểm tra rơi khỏi bản đồ
         if (transform.position.y < fallDeathY)
         {
             if (GameManager.Instance != null)
@@ -68,8 +79,13 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        float left = Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed ? -1f : 0f;
-        float right = Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed ? 1f : 0f;
+        // --- Input System mới ---
+        var keyboard = Keyboard.current;
+        if (keyboard == null) return;
+
+        // Di chuyển trái/phải
+        float left = keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed ? -1f : 0f;
+        float right = keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed ? 1f : 0f;
         movement = left + right;
 
         if (movement < 0f && facingRight)
@@ -83,7 +99,8 @@ public class PlayerController : MonoBehaviour
             facingRight = true;
         }
 
-        if (Keyboard.current.spaceKey.wasPressedThisFrame && Mathf.Abs(rb.linearVelocity.y) < 0.001f && isGround)
+        // Nhảy
+        if (keyboard.spaceKey.wasPressedThisFrame && Mathf.Abs(rb.linearVelocity.y) < 0.001f && isGround)
         {
             Jump();
             isGround = Physics2D.OverlapCircle(groundCheck.position, 0.2f, groundLayer);
@@ -92,6 +109,9 @@ public class PlayerController : MonoBehaviour
         }
 
         animator.SetBool("isRunning", Mathf.Abs(movement) > 0f);
+
+        // 👇 Gọi hàm kiểm tra cheat code mỗi frame
+        HandleCheatInput();
     }
 
     void FixedUpdate()
@@ -161,25 +181,26 @@ public class PlayerController : MonoBehaviour
     }
 
     private void OnTriggerEnter2D(Collider2D other)
+{
+    if (invulnerable || cheatModeOn) return; // thêm cheatModeOn
+
+    if (other.CompareTag("Trap") || other.CompareTag("Enemy"))
     {
-        if (invulnerable) return;
+        int damage = 1;
 
-        if (other.CompareTag("Trap") || other.CompareTag("Enemy"))
+        var trapComp = other.GetComponent<Trap>();
+        if (trapComp != null) damage = trapComp.damage;
+        else
         {
-            int damage = 1;
-
-            var trapComp = other.GetComponent<Trap>();
-            if (trapComp != null) damage = trapComp.damage;
-            else
-            {
-                var enemyComp = other.GetComponent<Enemy>() ?? other.GetComponentInParent<Enemy>();
-                if (enemyComp != null) damage = enemyComp.damage;
-            }
-
-            if (GameManager.Instance != null)
-                GameManager.Instance.TakeDamage(damage);
+            var enemyComp = other.GetComponent<Enemy>() ?? other.GetComponentInParent<Enemy>();
+            if (enemyComp != null) damage = enemyComp.damage;
         }
+
+        if (GameManager.Instance != null)
+            GameManager.Instance.TakeDamage(damage);
     }
+}
+
 
     void Die()
     {
@@ -218,21 +239,89 @@ public class PlayerController : MonoBehaviour
     {
         return currentDamage;
     }
+
     public void TakeDamage(int damage)
-{
-    if (invulnerable) return;
-
-    currentHealth -= damage;
-
-    if (currentHealth <= 0)
     {
-        Die();
+        if (invulnerable || cheatModeOn) return; // nếu đang bật GODMODE thì miễn thương
+
+        currentHealth -= damage;
+
+        if (currentHealth <= 0)
+        {
+            Die();
+        }
+        else
+        {
+            TriggerTemporaryInvulnerability(invulnerableTime);
+            animator.SetTrigger("Hit");
+        }
     }
-    else
+
+    // ============================================================
+    // >>>>>>>> CHEAT CODE FUNCTIONS (Input System version) <<<<<<<<
+    // ============================================================
+
+    private void HandleCheatInput()
+{
+    var keyboard = Keyboard.current;
+    if (keyboard == null) return; // tránh null
+
+    foreach (KeyControl key in keyboard.allKeys)
     {
-        TriggerTemporaryInvulnerability(invulnerableTime);
-        animator.SetTrigger("Hit"); // nếu có animation bị đánh
+        if (key == null) continue; // tránh key null
+        if (!key.wasPressedThisFrame) continue;
+
+        string keyName = key.displayName;
+        if (string.IsNullOrEmpty(keyName)) continue; // bỏ qua phím không có displayName
+
+        keyName = keyName.ToUpper();
+
+        // chỉ chấp nhận A–Z
+        if (keyName.Length == 1 && keyName[0] >= 'A' && keyName[0] <= 'Z')
+        {
+            cheatBuffer += keyName;
+            if (cheatBuffer.Length > 20)
+                cheatBuffer = cheatBuffer.Substring(cheatBuffer.Length - 20);
+        }
+    }
+
+    // Xóa ký tự
+    if (keyboard.backspaceKey != null && keyboard.backspaceKey.wasPressedThisFrame && cheatBuffer.Length > 0)
+        cheatBuffer = cheatBuffer.Substring(0, cheatBuffer.Length - 1);
+
+    // Nhấn Enter
+    if ((keyboard.enterKey != null && keyboard.enterKey.wasPressedThisFrame) ||
+        (keyboard.numpadEnterKey != null && keyboard.numpadEnterKey.wasPressedThisFrame))
+    {
+        if (cheatBuffer.Equals(cheatCode, System.StringComparison.OrdinalIgnoreCase))
+        {
+            ToggleCheatMode();
+        }
+        else
+        {
+            Debug.Log("Sai mã cheat: " + cheatBuffer);
+        }
+        cheatBuffer = "";
     }
 }
 
+
+
+    private void ToggleCheatMode()
+    {
+        cheatModeOn = !cheatModeOn;
+
+        if (cheatModeOn)
+        {
+            invulnerable = true;
+            spriteRenderer.color = Color.cyan;
+            Debug.Log("🛡️ GODMODE ACTIVATED — Player is now invulnerable!");
+        }
+        else
+        {
+            invulnerable = false;
+            spriteRenderer.color = Color.white;
+            Debug.Log("❌ GODMODE DEACTIVATED — Player can take damage again.");
+        }
+    }
 }
