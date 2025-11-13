@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using TMPro;
+using UnityEngine.InputSystem; // Input System mới
 
 public class GameManager : MonoBehaviour
 {
@@ -13,12 +14,15 @@ public class GameManager : MonoBehaviour
 
     [Header("UI")]
     public GameObject gameOverPanel;
-    public TMP_Text healthText;   // kéo Text (TMP) vào đây
-    public Image healthBarFill;   // kéo HealthBar_Fill (Image) vào đây
+    public GameObject pauseMenuUI; // ⚡ thêm menu pause ở đây
+    public TMP_Text healthText;
+    public Image healthBarFill;
 
     [Header("Keys")]
     public int keyCount = 0;
-    public TMP_Text keyText; // gán Text Mesh Pro hiển thị số key
+    public TMP_Text keyText;
+
+    private bool isPaused = false;
 
     void Awake()
     {
@@ -30,16 +34,35 @@ public class GameManager : MonoBehaviour
     {
         currentHealth = maxHealth;
         if (gameOverPanel != null) gameOverPanel.SetActive(false);
+        if (pauseMenuUI != null) pauseMenuUI.SetActive(false);
         UpdateHealthUI();
         UpdateKeyUI();
     }
 
+    void Update()
+    {
+        // Nhận input kể cả khi Time.timeScale = 0
+        InputSystem.Update();
+
+        if (Input.GetKeyDown(KeyCode.Escape)) // fallback cho chắc
+        {
+            Debug.Log("✅ ESC detected (InputSystem or Legacy)!");
+            if (isPaused) ResumeGame();
+            else PauseGame();
+        }
+
+    }
+
+    // =================== Health ===================
+
     public void TakeDamage(int amount)
     {
         if (currentHealth <= 0) return;
+
         currentHealth -= amount;
         if (currentHealth < 0) currentHealth = 0;
         UpdateHealthUI();
+
         if (currentHealth <= 0) OnGameOver();
     }
 
@@ -54,8 +77,27 @@ public class GameManager : MonoBehaviour
     void OnGameOver()
     {
         if (gameOverPanel != null) gameOverPanel.SetActive(true);
+        if (pauseMenuUI != null) pauseMenuUI.SetActive(false);
         Time.timeScale = 0f;
     }
+
+    // =================== Pause ===================
+
+    void PauseGame()
+    {
+        if (pauseMenuUI != null) pauseMenuUI.SetActive(true);
+        Time.timeScale = 0f;
+        isPaused = true;
+    }
+
+    public void ResumeGame()
+    {
+        if (pauseMenuUI != null) pauseMenuUI.SetActive(false);
+        Time.timeScale = 1f;
+        isPaused = false;
+    }
+
+    // =================== Scene & Keys ===================
 
     public void RestartToStart()
     {
@@ -87,9 +129,14 @@ public class GameManager : MonoBehaviour
         UpdateKeyUI();
         UpdateHealthUI();
         if (gameOverPanel != null) gameOverPanel.SetActive(false);
+        if (pauseMenuUI != null) pauseMenuUI.SetActive(false);
+        Time.timeScale = 1f;
+        isPaused = false;
     }
+
     public void GotoMenu()
     {
+        Time.timeScale = 1f;
         SceneManager.LoadScene("Menu");
     }
 }
