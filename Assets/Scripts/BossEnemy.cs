@@ -31,6 +31,9 @@ public class BossEnemy : MonoBehaviour
     private Transform player;
     private bool isDead = false;
 
+    public GameObject coinPrefab;
+    public int coinsToDrop = 20;
+
     void Start()
     {
         currentHealth = maxHealth;
@@ -123,5 +126,13 @@ public class BossEnemy : MonoBehaviour
         Destroy(gameObject);
         if (healthBarUI != null)
             Destroy(healthBarUI.gameObject);
+
+        if (coinPrefab != null)
+        {
+            for (int i = 0; i < coinsToDrop; i++)
+            {
+                Instantiate(coinPrefab, transform.position, Quaternion.identity);
+            }
+        }
     }
 }

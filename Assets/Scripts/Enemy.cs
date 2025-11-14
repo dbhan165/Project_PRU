@@ -8,6 +8,8 @@ public class Enemy : MonoBehaviour
     [SerializeField] private float distance = 5f;
     private Vector3 startPos;
     private bool movingRight = true;
+    public GameObject coinPrefab;
+    public int coinsToDrop = 1;
     void Start()
     {
         startPos = transform.position;
@@ -55,6 +57,14 @@ public class Enemy : MonoBehaviour
         else
         {
             Destroy(gameObject);
+        }
+
+        if (coinPrefab != null)
+        {
+            for (int i = 0; i < coinsToDrop; i++)
+            {
+                Instantiate(coinPrefab, transform.position, Quaternion.identity);
+            }
         }
     }
 }
