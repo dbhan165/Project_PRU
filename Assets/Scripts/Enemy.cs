@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 public class Enemy : MonoBehaviour
@@ -9,10 +10,11 @@ public class Enemy : MonoBehaviour
     [SerializeField] private float distance = 5f;
     private Vector3 startPos;
     private bool movingRight = true;
-    
+    [SerializeField] private GameObject eagle;
+    [SerializeField] private Transform dropPoint;
     void Awake()
     {
-        audioManager = FindObjectOfType<AudioManager>();
+        audioManager = FindAnyObjectByType<AudioManager>();
     }
     void Start()
     {
@@ -63,5 +65,7 @@ public class Enemy : MonoBehaviour
         {
             Destroy(gameObject);
         }
+        GameObject eagleObj = Instantiate(eagle, dropPoint.position, Quaternion.identity);
+        eagleObj.transform.localScale = new Vector3(-1f, 1f, 1f);
     }
 }

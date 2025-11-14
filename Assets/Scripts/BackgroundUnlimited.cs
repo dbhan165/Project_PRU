@@ -6,7 +6,6 @@ public class BackgroundUnlimited : MonoBehaviour
     [SerializeField] private Transform midBg;
     [SerializeField] private Transform sideBg;
     [SerializeField] private float length;
-    [SerializeField] private GameObject player;
     void Start()
     {
 
