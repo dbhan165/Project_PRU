@@ -24,6 +24,10 @@ public class GameManager : MonoBehaviour
 
     private bool isPaused = false;
 
+    [Header("Currency")]
+    public int coinCount = 0;
+    public TMP_Text coinText;
+
     void Awake()
     {
         if (Instance == null) Instance = this;
@@ -138,5 +142,41 @@ public class GameManager : MonoBehaviour
     {
         Time.timeScale = 1f;
         SceneManager.LoadScene("Menu");
+    }
+
+    public void AddCoin(int amount)
+    {
+        coinCount += amount;
+        UpdateCoinUI();
+    }
+    void UpdateCoinUI()
+    {
+        if (coinText != null) coinText.text = coinCount.ToString();
+    }
+    public bool TrySpendCoins(int amountToSpend)
+    {
+        if (coinCount >= amountToSpend)
+        {
+            coinCount -= amountToSpend;
+            UpdateCoinUI();
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    public void HealPlayer(int amount)
+    {
+        currentHealth += amount;
+        if (currentHealth > maxHealth) currentHealth = maxHealth;
+        UpdateHealthUI();
+    }
+    public void IncreaseMaxHealth(int amount)
+    {
+        maxHealth += amount;
+        currentHealth += amount;
+        UpdateHealthUI();
     }
 }

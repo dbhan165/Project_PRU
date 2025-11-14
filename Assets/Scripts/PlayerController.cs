@@ -42,6 +42,8 @@ public class PlayerController : MonoBehaviour
     private int currentDamage;
     private bool isPowered = false;
 
+    private bool isRaging = false;
+
     public static PlayerController Instance;
 
     // ============================================================
@@ -163,43 +165,65 @@ public class PlayerController : MonoBehaviour
 
     public void TriggerTemporaryInvulnerability(float duration)
     {
-        StartCoroutine(InvulnerableCoroutine(duration));
+        // Kiểm tra xem có đang Bạo kích hay không
+        if (isRaging) // Chúng ta cần thêm biến isRaging
+        {
+            // Nếu đang Bạo kích, chỉ bật cờ invulnerable chứ không đổi màu
+            StartCoroutine(JustInvulnerableFlag(duration));
+        }
+        else
+        {
+            // Nếu không, chạy hiệu ứng như bình thường
+            StartCoroutine(InvulnerableCoroutine(duration));
+        }
     }
 
     IEnumerator InvulnerableCoroutine(float duration)
     {
         invulnerable = true;
-        float t = 0f;
-        while (t < duration)
+
+        // Lưu lại màu gốc của nhân vật
+        Color originalColor = spriteRenderer.color;
+        // Đặt màu mới khi bất tử (ví dụ: màu vàng rực)
+        Color invulnerableColor = new(1f, 0.9f, 0f, 1f); // Màu vàng
+
+        float endTime = Time.time + duration;
+
+        // Vòng lặp này sẽ chạy trong suốt thời gian bất tử
+        while (Time.time < endTime)
         {
-            spriteRenderer.enabled = !spriteRenderer.enabled;
+            // Hiệu ứng nhấp nháy giữa màu bất tử và màu trong suốt
+            spriteRenderer.color = invulnerableColor;
             yield return new WaitForSeconds(0.1f);
-            t += 0.1f;
+            spriteRenderer.color = new Color(invulnerableColor.r, invulnerableColor.g, invulnerableColor.b, 0.5f); // Hơi trong suốt
+            yield return new WaitForSeconds(0.1f);
         }
-        spriteRenderer.enabled = true;
+
+        // Khi hiệu ứng kết thúc, trả lại màu gốc
+        spriteRenderer.color = originalColor;
         invulnerable = false;
     }
 
     private void OnTriggerEnter2D(Collider2D other)
-{
-    if (invulnerable || cheatModeOn) return; // thêm cheatModeOn
-
-    if (other.CompareTag("Trap") || other.CompareTag("Enemy"))
     {
-        int damage = 1;
+        if (invulnerable || cheatModeOn) return; // thêm cheatModeOn
 
-        var trapComp = other.GetComponent<Trap>();
-        if (trapComp != null) damage = trapComp.damage;
-        else
+        if (other.CompareTag("Trap") || other.CompareTag("Enemy"))
         {
-            var enemyComp = other.GetComponent<Enemy>() ?? other.GetComponentInParent<Enemy>();
-            if (enemyComp != null) damage = enemyComp.damage;
-        }
+            int damage = 1;
 
-        if (GameManager.Instance != null)
-            GameManager.Instance.TakeDamage(damage);
+            var trapComp = other.GetComponent<Trap>();
+            if (trapComp != null) damage = trapComp.damage;
+            else
+            {
+                var enemyComp = other.GetComponent<Enemy>() ?? other.GetComponentInParent<Enemy>();
+                if (enemyComp != null) damage = enemyComp.damage;
+            }
+
+            if (GameManager.Instance != null)
+                GameManager.Instance.TakeDamage(damage);
+        }
     }
-}
 
 
     void Die()
@@ -262,51 +286,48 @@ public class PlayerController : MonoBehaviour
     // ============================================================
 
     private void HandleCheatInput()
-{
-    var keyboard = Keyboard.current;
-    if (keyboard == null) return; // tránh null
-
-    foreach (KeyControl key in keyboard.allKeys)
     {
-        if (key == null) continue; // tránh key null
-        if (!key.wasPressedThisFrame) continue;
+        var keyboard = Keyboard.current;
+        if (keyboard == null) return; // tránh null
 
-        string keyName = key.displayName;
-        if (string.IsNullOrEmpty(keyName)) continue; // bỏ qua phím không có displayName
-
-        keyName = keyName.ToUpper();
-
-        // chỉ chấp nhận A–Z
-        if (keyName.Length == 1 && keyName[0] >= 'A' && keyName[0] <= 'Z')
+        foreach (KeyControl key in keyboard.allKeys)
         {
-            cheatBuffer += keyName;
-            if (cheatBuffer.Length > 20)
-                cheatBuffer = cheatBuffer.Substring(cheatBuffer.Length - 20);
+            if (key == null) continue; // tránh key null
+            if (!key.wasPressedThisFrame) continue;
+
+            string keyName = key.displayName;
+            if (string.IsNullOrEmpty(keyName)) continue; // bỏ qua phím không có displayName
+
+            keyName = keyName.ToUpper();
+
+            // chỉ chấp nhận A–Z
+            if (keyName.Length == 1 && keyName[0] >= 'A' && keyName[0] <= 'Z')
+            {
+                cheatBuffer += keyName;
+                if (cheatBuffer.Length > 20)
+                    cheatBuffer = cheatBuffer.Substring(cheatBuffer.Length - 20);
+            }
+        }
+
+        // Xóa ký tự
+        if (keyboard.backspaceKey != null && keyboard.backspaceKey.wasPressedThisFrame && cheatBuffer.Length > 0)
+            cheatBuffer = cheatBuffer.Substring(0, cheatBuffer.Length - 1);
+
+        // Nhấn Enter
+        if ((keyboard.enterKey != null && keyboard.enterKey.wasPressedThisFrame) ||
+            (keyboard.numpadEnterKey != null && keyboard.numpadEnterKey.wasPressedThisFrame))
+        {
+            if (cheatBuffer.Equals(cheatCode, System.StringComparison.OrdinalIgnoreCase))
+            {
+                ToggleCheatMode();
+            }
+            else
+            {
+                Debug.Log("Sai mã cheat: " + cheatBuffer);
+            }
+            cheatBuffer = "";
         }
     }
-
-    // Xóa ký tự
-    if (keyboard.backspaceKey != null && keyboard.backspaceKey.wasPressedThisFrame && cheatBuffer.Length > 0)
-        cheatBuffer = cheatBuffer.Substring(0, cheatBuffer.Length - 1);
-
-    // Nhấn Enter
-    if ((keyboard.enterKey != null && keyboard.enterKey.wasPressedThisFrame) ||
-        (keyboard.numpadEnterKey != null && keyboard.numpadEnterKey.wasPressedThisFrame))
-    {
-        if (cheatBuffer.Equals(cheatCode, System.StringComparison.OrdinalIgnoreCase))
-        {
-            ToggleCheatMode();
-        }
-        else
-        {
-            Debug.Log("Sai mã cheat: " + cheatBuffer);
-        }
-        cheatBuffer = "";
-    }
-}
-
-
-
     private void ToggleCheatMode()
     {
         cheatModeOn = !cheatModeOn;
@@ -323,5 +344,43 @@ public class PlayerController : MonoBehaviour
             spriteRenderer.color = Color.white;
             Debug.Log("❌ GODMODE DEACTIVATED — Player can take damage again.");
         }
+    }
+
+    public void IncreaseMoveSpeed(float percentage)
+    {
+        moveSpeed *= (1 + percentage);
+    }
+
+    public void ActivateRageMode(float duration)
+    {
+        // Gọi coroutine để xử lý hiệu ứng
+        StartCoroutine(RageCoroutine(duration));
+    }
+
+    private IEnumerator RageCoroutine(float duration)
+    {
+        isRaging = true;
+        // Lưu lại các giá trị gốc
+        int originalDamage = GetAttackDamage();
+        Color originalColor = spriteRenderer.color;
+
+        // Thiết lập trạng thái Bạo kích
+        currentDamage = originalDamage * 3; // Gấp ba sát thương
+        spriteRenderer.color = new Color(1f, 0.2f, 0.2f, 1f); // Màu đỏ rực
+
+        // Chờ hết thời gian
+        yield return new WaitForSeconds(duration);
+
+        // Trả lại trạng thái bình thường
+        currentDamage = originalDamage;
+        spriteRenderer.color = originalColor;
+        isRaging = false;
+    }
+
+    private IEnumerator JustInvulnerableFlag(float duration)
+    {
+        invulnerable = true;
+        yield return new WaitForSeconds(duration);
+        invulnerable = false;
     }
 }
