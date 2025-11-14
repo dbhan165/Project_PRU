@@ -3,6 +3,8 @@ using UnityEngine.UI;
 
 public class BossEnemy : MonoBehaviour
 {
+    private AudioManager audioManager;
+
     [Header("Health Settings")]
     public int maxHealth = 100;
     public int currentHealth;
@@ -30,6 +32,11 @@ public class BossEnemy : MonoBehaviour
 
     private Transform player;
     private bool isDead = false;
+
+    private void Awake()
+    {
+        audioManager = FindAnyObjectByType<AudioManager>();
+    }
 
     void Start()
     {
@@ -107,6 +114,7 @@ public class BossEnemy : MonoBehaviour
         if (isDead) return;
 
         currentHealth -= damage;
+        audioManager.PlayGetTrapSound();
         if (healthFillImage != null)
             healthFillImage.fillAmount = (float)currentHealth / maxHealth;
 
@@ -117,6 +125,7 @@ public class BossEnemy : MonoBehaviour
     void Die()
     {
         isDead = true;
+        audioManager.PlayGameOverSound();
         if (keyPrefab != null && dropPoint != null)
             Instantiate(keyPrefab, dropPoint.position, Quaternion.identity);
 
