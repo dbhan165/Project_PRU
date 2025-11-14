@@ -1,13 +1,21 @@
+using System;
 using UnityEngine;
 
 public class Enemy : MonoBehaviour
 {
+    private AudioManager audioManager;
     [Tooltip("Số máu mất khi chạm vào enemy")]
     public int damage = 1;
     [SerializeField] private float speed = 2f;
     [SerializeField] private float distance = 5f;
     private Vector3 startPos;
     private bool movingRight = true;
+    [SerializeField] private GameObject eagle;
+    [SerializeField] private Transform dropPoint;
+    void Awake()
+    {
+        audioManager = FindAnyObjectByType<AudioManager>();
+    }
     void Start()
     {
         startPos = transform.position;
@@ -41,6 +49,7 @@ public class Enemy : MonoBehaviour
     }
     public void Die()
     {
+        audioManager.PlayEnemyDeathSound();
         // tắt collider để tránh trigger/va chạm thêm
         var cols = GetComponents<Collider2D>();
         foreach (var c in cols) c.enabled = false;
@@ -56,5 +65,7 @@ public class Enemy : MonoBehaviour
         {
             Destroy(gameObject);
         }
+        GameObject eagleObj = Instantiate(eagle, dropPoint.position, Quaternion.identity);
+        eagleObj.transform.localScale = new Vector3(-1f, 1f, 1f);
     }
 }

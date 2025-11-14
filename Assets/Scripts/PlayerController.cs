@@ -6,13 +6,15 @@ using UnityEngine.SceneManagement;
 
 public class PlayerController : MonoBehaviour
 {
+    private AudioManager audioManager;
+
     [Header("Movement")]
     public Rigidbody2D rb;
     public float jumpHeight = 5f;
     public float moveSpeed = 5f;
     private float movement;
     private bool facingRight = true;
-    public bool isGround = true;
+    [HideInInspector] public bool isGround = true;
     [SerializeField] private LayerMask groundLayer;
     [SerializeField] private Transform groundCheck;
 
@@ -44,50 +46,79 @@ public class PlayerController : MonoBehaviour
 
     public static PlayerController Instance;
 
-    // ============================================================
-    // >>>>>>>> CHEAT CODE <<<<<<<<
-    // ============================================================
     [Header("Cheat Code Settings")]
-    public string cheatCode = "GODMODE";     // mã để bật/tắt bất tử
-    private string cheatBuffer = "";         // lưu tạm ký tự người chơi nhập
-    public bool cheatModeOn = false;         // đang bật cheat hay chưa
-    // ============================================================
+    public string cheatCode = "GODMODE";
+    private string cheatBuffer = "";
+    public bool cheatModeOn = false;
+
+    [Header("Fly Hack Settings")]
+    public bool flyModeOn = false;
+    public float flySpeed = 7f;
+    private float defaultGravity;
 
     void Awake()
     {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
         Instance = this;
+
         spriteRenderer = GetComponent<SpriteRenderer>() ?? GetComponentInChildren<SpriteRenderer>();
+        audioManager = FindAnyObjectByType<AudioManager>();
+
+        if (rb == null) rb = GetComponent<Rigidbody2D>();
+        if (animator == null) animator = GetComponent<Animator>();
+
+        defaultSprite = spriteRenderer ? spriteRenderer.sprite : null;
+        defaultAnimator = animator ? animator.runtimeAnimatorController : null;
+    }
+
+    void OnEnable()
+    {
+        ResetStateOnEnable();
     }
 
     void Start()
     {
         currentHealth = maxHealth;
-        defaultSprite = spriteRenderer.sprite;
-        defaultAnimator = animator.runtimeAnimatorController;
         currentDamage = baseDamage;
     }
 
     void Update()
     {
-        // Kiểm tra rơi khỏi bản đồ
+        if (rb == null || animator == null) return;
+
+        // Ground check
+        isGround = groundCheck != null && Physics2D.OverlapCircle(groundCheck.position, 0.2f, groundLayer);
+
+        // Rơi khỏi map
         if (transform.position.y < fallDeathY)
         {
             if (GameManager.Instance != null)
                 GameManager.Instance.TakeDamage(GameManager.Instance.currentHealth);
             else
-                Die();
+                Respawn();
             return;
         }
-
-        // --- Input System mới ---
         var keyboard = Keyboard.current;
         if (keyboard == null) return;
 
-        // Di chuyển trái/phải
-        float left = keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed ? -1f : 0f;
-        float right = keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed ? 1f : 0f;
+        // Movement input
+        float left = (keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed) ? -1f : 0f;
+        float right = (keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed) ? 1f : 0f;
         movement = left + right;
 
+        // Jump
+        if (!flyModeOn && keyboard.spaceKey.wasPressedThisFrame && isGround)
+        {
+            Jump();
+            if (audioManager != null) audioManager.PlayJumpSound();
+            animator.SetBool("isJumping", true);
+        }
+
+        // Flip
         if (movement < 0f && facingRight)
         {
             transform.eulerAngles = new Vector3(0f, -180f, 0f);
@@ -99,29 +130,36 @@ public class PlayerController : MonoBehaviour
             facingRight = true;
         }
 
-        // Nhảy
-        if (keyboard.spaceKey.wasPressedThisFrame && Mathf.Abs(rb.linearVelocity.y) < 0.001f && isGround)
-        {
-            Jump();
-            isGround = Physics2D.OverlapCircle(groundCheck.position, 0.2f, groundLayer);
-            isGround = false;
-            animator.SetBool("isJumping", true);
-        }
-
         animator.SetBool("isRunning", Mathf.Abs(movement) > 0f);
 
-        // 👇 Gọi hàm kiểm tra cheat code mỗi frame
+        // ===== Fly Mode Movement =====
+        if (flyModeOn)
+        {
+            float flyX = 0f;
+            float flyY = 0f;
+
+            if (keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed) flyX = -1f;
+            if (keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed) flyX = 1f;
+            if (keyboard.wKey.isPressed || keyboard.upArrowKey.isPressed) flyY = 1f;
+            if (keyboard.sKey.isPressed || keyboard.downArrowKey.isPressed) flyY = -1f;
+
+            Vector2 flyMove = new Vector2(flyX, flyY).normalized * flySpeed * Time.deltaTime;
+            transform.position += new Vector3(flyMove.x, flyMove.y, 0f);
+        }
+
         HandleCheatInput();
     }
 
     void FixedUpdate()
     {
-        transform.position += new Vector3(movement * Time.fixedDeltaTime * moveSpeed, 0, 0);
+        if (!flyModeOn)
+            transform.position += new Vector3(movement * Time.fixedDeltaTime * moveSpeed, 0, 0);
     }
 
     void Jump()
     {
-        rb.AddForce(new Vector2(0f, jumpHeight), ForceMode2D.Impulse);
+        rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
+        rb.AddForce(Vector2.up * jumpHeight, ForceMode2D.Impulse);
     }
 
     private void OnCollisionEnter2D(Collision2D collision)
@@ -163,6 +201,7 @@ public class PlayerController : MonoBehaviour
 
     public void TriggerTemporaryInvulnerability(float duration)
     {
+        StopCoroutine(nameof(InvulnerableCoroutine));
         StartCoroutine(InvulnerableCoroutine(duration));
     }
 
@@ -172,84 +211,46 @@ public class PlayerController : MonoBehaviour
         float t = 0f;
         while (t < duration)
         {
-            spriteRenderer.enabled = !spriteRenderer.enabled;
+            if (spriteRenderer != null)
+                spriteRenderer.enabled = !spriteRenderer.enabled;
             yield return new WaitForSeconds(0.1f);
             t += 0.1f;
         }
-        spriteRenderer.enabled = true;
+        if (spriteRenderer != null) spriteRenderer.enabled = true;
         invulnerable = false;
     }
 
     private void OnTriggerEnter2D(Collider2D other)
-{
-    if (invulnerable || cheatModeOn) return; // thêm cheatModeOn
-
-    if (other.CompareTag("Trap") || other.CompareTag("Enemy"))
     {
-        int damage = 1;
+        if (invulnerable || cheatModeOn) return;
 
-        var trapComp = other.GetComponent<Trap>();
-        if (trapComp != null) damage = trapComp.damage;
-        else
+        if (other.CompareTag("Trap") || other.CompareTag("Enemy"))
         {
-            var enemyComp = other.GetComponent<Enemy>() ?? other.GetComponentInParent<Enemy>();
-            if (enemyComp != null) damage = enemyComp.damage;
+            int damage = 1;
+            if (audioManager != null) audioManager.PlayGetTrapSound();
+
+            var trapComp = other.GetComponent<Trap>();
+            if (trapComp != null) damage = trapComp.damage;
+            else
+            {
+                var enemyComp = other.GetComponent<Enemy>() ?? other.GetComponentInParent<Enemy>();
+                if (enemyComp != null) damage = enemyComp.damage;
+            }
+
+            if (GameManager.Instance != null)
+                GameManager.Instance.TakeDamage(damage);
+            else
+                TakeDamage(damage);
         }
-
-        if (GameManager.Instance != null)
-            GameManager.Instance.TakeDamage(damage);
-    }
-}
-
-
-    void Die()
-    {
-        animator.SetTrigger("Die");
-        Time.timeScale = 1f;
-        SceneManager.LoadScene(0);
-    }
-
-    public void ApplyPowerUp(Sprite newSprite, RuntimeAnimatorController newAnim, int damage, float duration)
-    {
-        StopCoroutine(nameof(RevertPowerUpAfter));
-
-        if (newSprite != null) spriteRenderer.sprite = newSprite;
-        if (newAnim != null && animator != null)
-        {
-            animator.runtimeAnimatorController = newAnim;
-            animator.enabled = true;
-        }
-
-        currentDamage = damage;
-        isPowered = true;
-        StartCoroutine(RevertPowerUpAfter(duration));
-        Debug.Log("ApplyPowerUp called with sprite: " + newSprite.name);
-    }
-
-    private IEnumerator RevertPowerUpAfter(float t)
-    {
-        yield return new WaitForSeconds(t);
-        spriteRenderer.sprite = defaultSprite;
-        animator.runtimeAnimatorController = defaultAnimator;
-        currentDamage = baseDamage;
-        isPowered = false;
-    }
-
-    public int GetAttackDamage()
-    {
-        return currentDamage;
     }
 
     public void TakeDamage(int damage)
     {
-        if (invulnerable || cheatModeOn) return; // nếu đang bật GODMODE thì miễn thương
+        if (invulnerable || cheatModeOn) return;
 
         currentHealth -= damage;
 
-        if (currentHealth <= 0)
-        {
-            Die();
-        }
+        if (currentHealth <= 0) Die();
         else
         {
             TriggerTemporaryInvulnerability(invulnerableTime);
@@ -257,55 +258,124 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // ============================================================
-    // >>>>>>>> CHEAT CODE FUNCTIONS (Input System version) <<<<<<<<
-    // ============================================================
+    void Die()
+    {
+        animator.SetTrigger("Die");
+        if (audioManager != null)
+        {
+            audioManager.StopBackgroundMusic();
+            audioManager.PlayGameOverSound();
+        }
+
+        StartCoroutine(DelayedReload());
+    }
+
+    IEnumerator DelayedReload()
+    {
+        yield return new WaitForSeconds(0.8f);
+        Time.timeScale = 1f;
+        Respawn();
+    }
+
+    void ReloadScene()
+    {
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+    }
+
+    public void Respawn()
+    {
+        if (respawnPoint == null)
+        {
+            ReloadScene();
+            return;
+        }
+
+        transform.position = respawnPoint.position;
+        rb.linearVelocity = Vector2.zero;
+        movement = 0f;
+
+        currentHealth = maxHealth;
+        invulnerable = false;
+        cheatModeOn = false;
+        flyModeOn = false;
+        cheatBuffer = "";
+
+        animator.ResetTrigger("Die");
+        animator.SetBool("isJumping", false);
+        animator.SetBool("isRunning", false);
+
+        if (spriteRenderer != null)
+        {
+            spriteRenderer.enabled = true;
+            spriteRenderer.color = Color.white;
+        }
+        if (defaultAnimator != null && animator != null)
+            animator.runtimeAnimatorController = defaultAnimator;
+
+        StopAllCoroutines();
+    }
+
+    public void ApplyPowerUp(Sprite newSprite, RuntimeAnimatorController newAnim, int damage, float duration)
+    {
+        if (audioManager != null) audioManager.PlayLevelUpSound();
+        StopCoroutine(nameof(RevertPowerUpAfter));
+
+        if (newSprite != null && spriteRenderer != null) spriteRenderer.sprite = newSprite;
+        if (newAnim != null && animator != null)
+            animator.runtimeAnimatorController = newAnim;
+
+        currentDamage = damage;
+        isPowered = true;
+        StartCoroutine(RevertPowerUpAfter(duration));
+    }
+
+    private IEnumerator RevertPowerUpAfter(float t)
+    {
+        yield return new WaitForSeconds(t);
+        if (spriteRenderer != null && defaultSprite != null) spriteRenderer.sprite = defaultSprite;
+        if (animator != null && defaultAnimator != null) animator.runtimeAnimatorController = defaultAnimator;
+        currentDamage = baseDamage;
+        isPowered = false;
+    }
+
+    public int GetAttackDamage() => currentDamage;
 
     private void HandleCheatInput()
-{
-    var keyboard = Keyboard.current;
-    if (keyboard == null) return; // tránh null
-
-    foreach (KeyControl key in keyboard.allKeys)
     {
-        if (key == null) continue; // tránh key null
-        if (!key.wasPressedThisFrame) continue;
+        var keyboard = Keyboard.current;
+        if (keyboard == null) return;
 
-        string keyName = key.displayName;
-        if (string.IsNullOrEmpty(keyName)) continue; // bỏ qua phím không có displayName
-
-        keyName = keyName.ToUpper();
-
-        // chỉ chấp nhận A–Z
-        if (keyName.Length == 1 && keyName[0] >= 'A' && keyName[0] <= 'Z')
+        foreach (KeyControl key in keyboard.allKeys)
         {
-            cheatBuffer += keyName;
-            if (cheatBuffer.Length > 20)
-                cheatBuffer = cheatBuffer.Substring(cheatBuffer.Length - 20);
+            if (key == null || !key.wasPressedThisFrame) continue;
+
+            string keyName = key.displayName;
+            if (string.IsNullOrEmpty(keyName)) continue;
+
+            keyName = keyName.ToUpper();
+            if (keyName.Length == 1 && keyName[0] >= 'A' && keyName[0] <= 'Z')
+            {
+                cheatBuffer += keyName;
+                if (cheatBuffer.Length > 20) cheatBuffer = cheatBuffer.Substring(cheatBuffer.Length - 20);
+            }
         }
+
+        if (keyboard.backspaceKey != null && keyboard.backspaceKey.wasPressedThisFrame && cheatBuffer.Length > 0)
+            cheatBuffer = cheatBuffer.Substring(0, cheatBuffer.Length - 1);
+
+        if ((keyboard.enterKey != null && keyboard.enterKey.wasPressedThisFrame) ||
+            (keyboard.numpadEnterKey != null && keyboard.numpadEnterKey.wasPressedThisFrame))
+        {
+            if (cheatBuffer.Equals(cheatCode, System.StringComparison.OrdinalIgnoreCase))
+                ToggleCheatMode();
+
+            cheatBuffer = "";
+        }
+
+        // Toggle Fly Mode bằng phím F
+        if (keyboard.fKey != null && keyboard.fKey.wasPressedThisFrame)
+            ToggleFlyMode();
     }
-
-    // Xóa ký tự
-    if (keyboard.backspaceKey != null && keyboard.backspaceKey.wasPressedThisFrame && cheatBuffer.Length > 0)
-        cheatBuffer = cheatBuffer.Substring(0, cheatBuffer.Length - 1);
-
-    // Nhấn Enter
-    if ((keyboard.enterKey != null && keyboard.enterKey.wasPressedThisFrame) ||
-        (keyboard.numpadEnterKey != null && keyboard.numpadEnterKey.wasPressedThisFrame))
-    {
-        if (cheatBuffer.Equals(cheatCode, System.StringComparison.OrdinalIgnoreCase))
-        {
-            ToggleCheatMode();
-        }
-        else
-        {
-            Debug.Log("Sai mã cheat: " + cheatBuffer);
-        }
-        cheatBuffer = "";
-    }
-}
-
-
 
     private void ToggleCheatMode()
     {
@@ -314,14 +384,60 @@ public class PlayerController : MonoBehaviour
         if (cheatModeOn)
         {
             invulnerable = true;
-            spriteRenderer.color = Color.cyan;
-            Debug.Log("🛡️ GODMODE ACTIVATED — Player is now invulnerable!");
+            if (spriteRenderer != null) spriteRenderer.color = Color.cyan;
+            Debug.Log("God Mode ON!");
         }
         else
         {
             invulnerable = false;
-            spriteRenderer.color = Color.white;
-            Debug.Log("❌ GODMODE DEACTIVATED — Player can take damage again.");
+            if (spriteRenderer != null) spriteRenderer.color = Color.white;
+            Debug.Log("God Mode OFF!");
+        }
+    }
+
+    private void ToggleFlyMode()
+    {
+        flyModeOn = !flyModeOn;
+
+        if (flyModeOn)
+        {
+            defaultGravity = rb.gravityScale;
+            rb.gravityScale = 0f;
+            rb.linearVelocity = Vector2.zero;
+            if (spriteRenderer != null) spriteRenderer.color = Color.yellow;
+            Debug.Log("Fly Mode ON!");
+        }
+        else
+        {
+            rb.gravityScale = defaultGravity;
+            if (spriteRenderer != null) spriteRenderer.color = Color.white;
+            Debug.Log("Fly Mode OFF!");
+        }
+    }
+
+
+    void ResetStateOnEnable()
+    {
+        currentDamage = baseDamage;
+        currentHealth = Mathf.Max(1, currentHealth);
+        invulnerable = false;
+        cheatModeOn = false;
+        flyModeOn = false;
+        cheatBuffer = "";
+        if (animator != null)
+        {
+            animator.SetBool("isJumping", false);
+            animator.SetBool("isRunning", false);
+        }
+        if (rb != null) rb.linearVelocity = Vector2.zero;
+    }
+
+    void OnDrawGizmosSelected()
+    {
+        if (groundCheck != null)
+        {
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawWireSphere(groundCheck.position, 0.2f);
         }
     }
 }
