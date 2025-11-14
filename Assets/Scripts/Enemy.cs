@@ -2,12 +2,18 @@ using UnityEngine;
 
 public class Enemy : MonoBehaviour
 {
+    private AudioManager audioManager;
     [Tooltip("Số máu mất khi chạm vào enemy")]
     public int damage = 1;
     [SerializeField] private float speed = 2f;
     [SerializeField] private float distance = 5f;
     private Vector3 startPos;
     private bool movingRight = true;
+    
+    void Awake()
+    {
+        audioManager = FindObjectOfType<AudioManager>();
+    }
     void Start()
     {
         startPos = transform.position;
@@ -41,6 +47,7 @@ public class Enemy : MonoBehaviour
     }
     public void Die()
     {
+        audioManager.PlayEnemyDeathSound();
         // tắt collider để tránh trigger/va chạm thêm
         var cols = GetComponents<Collider2D>();
         foreach (var c in cols) c.enabled = false;

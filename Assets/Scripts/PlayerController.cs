@@ -6,6 +6,8 @@ using UnityEngine.SceneManagement;
 
 public class PlayerController : MonoBehaviour
 {
+    private AudioManager audioManager;
+
     [Header("Movement")]
     public Rigidbody2D rb;
     public float jumpHeight = 5f;
@@ -57,6 +59,7 @@ public class PlayerController : MonoBehaviour
     {
         Instance = this;
         spriteRenderer = GetComponent<SpriteRenderer>() ?? GetComponentInChildren<SpriteRenderer>();
+        audioManager = FindAnyObjectByType<AudioManager>();
     }
 
     void Start()
@@ -103,6 +106,7 @@ public class PlayerController : MonoBehaviour
         if (keyboard.spaceKey.wasPressedThisFrame && Mathf.Abs(rb.linearVelocity.y) < 0.001f && isGround)
         {
             Jump();
+            audioManager.PlayJumpSound();
             isGround = Physics2D.OverlapCircle(groundCheck.position, 0.2f, groundLayer);
             isGround = false;
             animator.SetBool("isJumping", true);
@@ -187,8 +191,9 @@ public class PlayerController : MonoBehaviour
     if (other.CompareTag("Trap") || other.CompareTag("Enemy"))
     {
         int damage = 1;
+        audioManager.PlayGetTrapSound();
 
-        var trapComp = other.GetComponent<Trap>();
+            var trapComp = other.GetComponent<Trap>();
         if (trapComp != null) damage = trapComp.damage;
         else
         {
@@ -205,12 +210,15 @@ public class PlayerController : MonoBehaviour
     void Die()
     {
         animator.SetTrigger("Die");
+        audioManager.StopBackgroundMusic();
+        audioManager.PlayGameOverSound();
         Time.timeScale = 1f;
         SceneManager.LoadScene(0);
     }
 
     public void ApplyPowerUp(Sprite newSprite, RuntimeAnimatorController newAnim, int damage, float duration)
     {
+        audioManager.PlayLevelUpSound();
         StopCoroutine(nameof(RevertPowerUpAfter));
 
         if (newSprite != null) spriteRenderer.sprite = newSprite;
