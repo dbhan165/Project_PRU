@@ -26,7 +26,7 @@ public class StompDetector : MonoBehaviour
         }
         else if (boss != null)
         {
-            boss.TakeDamage(1); // boss chỉ mất máu, không chết ngay
+            boss.TakeDamage(player.GetAttackDamage()); // boss chỉ mất máu, không chết ngay
         }
         else
         {
